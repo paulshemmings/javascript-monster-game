@@ -322,6 +322,7 @@
 
 				if (this.hero.avatar.ready) {
 					this.ctx.drawImage(this.hero.avatar.image, this.hero.x, this.hero.y);
+					this.ctx.fillText(Math.round(this.hero.health), this.hero.x, this.hero.y + 32);
 				}
 
 				if (this.food.avatar.ready) {
@@ -339,14 +340,16 @@
 							this.ctx.drawImage(monster.angryAvatar.image, monster.x, monster.y);	
 						}
 					}
+					this.ctx.fillText(monster.health, monster.x, monster.y + 32);
 				}
 
 				// Score
 
 				var status 	= "Goblins caught: " 
 							+ this.monstersCaught 
-							+ " :: health: " 
-							+ this.hero.health;
+							// + " :: health: " 
+							// + this.hero.health
+							;
 
 				if (this.gameOver) {
 					status = status + " :: Game Over!";
