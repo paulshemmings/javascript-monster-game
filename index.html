@@ -76,14 +76,15 @@
 		 * Instantiable as there will be many of these.
 		 */
 
-		var Character = function(imageUrl, speed, ix, iy, iwraps) {
-			this.maxSpeed = speed;
+		var Character = function(properties) {
+			this.maxSpeed = properties["maxSpeed"];
 			this.ddx = 0;
 			this.ddy = 0;
-			this.x = ix;
-			this.y = iy;
-			this.wraps = iwraps;
-			this.avatar = new SafeImage().initialize(imageUrl);
+			this.x = properties["x"];
+			this.y = properties["y"];
+			this.wraps = properties["wraps"];
+			this.health = properties["health"];
+			this.avatar = new SafeImage().initialize(properties["imageUrl"]);
 		};
 
 
@@ -94,9 +95,23 @@
 
 		var Game = {
 
-			hero : new Character("images/hero.png", 256, 0, 0, false),
+			hero : new Character({
+							imageUrl : "images/hero.png", 
+							maxSpeed : 256, 
+							x : 0, 
+							y : 0, 
+							wraps : false,
+							health : 1000
+			}),
 
-			food: new Character("images/cookie.png", 0, 200, 200, false),
+			food: new Character({
+							imageUrl : "images/cookie.png", 
+							maxSpeed : 0, 
+							x : 200, 
+							y : 200, 
+							wraps : false,
+							health : 500
+			}),
 
 			gameOver : false,
 
@@ -152,10 +167,14 @@
 				// give them an increased max speed
 
 				for(var m = 0 ; m < this.maxMonsters ; m++) {
-					var c = new Character("images/monster.png", this.monstersMaxSpeed, 50, 50);
-					c.wraps = true;
-					c.x = 32 + (Math.random() * (this.canvas.width - 64));
-					c.y = 32 + (Math.random() * (this.canvas.height - 64));
+					var c = new Character({
+								imageUrl : "images/monster.png", 
+								maxSpeed : this.monstersMaxSpeed, 
+								x : 32 + (Math.random() * (Game.canvas.width - 64)), 
+								y : 32 + (Math.random() * (Game.canvas.height - 64)),
+								wraps : true,
+								health : 1000
+					});
 					c.angryAvatar = new SafeImage().initialize("images/angry-monster.png");
 					this.monsters.push(c);
 				}
@@ -194,6 +213,10 @@
 
 			update : function (modifier) {
 
+				// is the hero alive ?
+
+				this.gameOver = (this.hero.health < 0);
+
 				// move hero
 
 				if (38 in this.keysDown) { // Player holding up
@@ -212,12 +235,14 @@
 				this.boundaryCheck(this.hero);
 
 				// is the hero touching the food ?
+				// give him the food's strength.
+				// move the food, then reset the food's health.
 
 				if (this.collisionCheck(this.hero, this.food)) {
-					this.food = new Character("images/cookie.png", 0, 200, 200, false);
+					this.hero.health += this.food.health;
 					this.food.x = 32 + (Math.random() * (this.canvas.width - 64));
-					this.food.y = 32 + (Math.random() * (this.canvas.height - 64));					
-					this.hero.strength = 1000;
+					this.food.y = 32 + (Math.random() * (this.canvas.height - 64));
+					this.food.health = 500;
 				}				
 
 				// loop through all the monsters
@@ -235,7 +260,7 @@
 					monster.ddx = dd * (xdis / totaldis); 
 					monster.ddy = dd * (ydis / totaldis); 
 
- 					if (this.hero.strength && this.hero.strength > 0 ) {
+ 					if (this.hero.health > monster.health ) {
  						monster.dx = (monster.x < this.hero.x ? -1 : 1) * (monster.ddx * modifier);
  						monster.dy = (monster.y < this.hero.y ? -1 : 1) * (monster.ddy * modifier);
  					} else {
@@ -246,31 +271,42 @@
 					monster.x += monster.dx;
 					monster.y += monster.dy;
 
- 					// decrease hero strength
+ 					// decrease hero health
 
- 					if (this.hero.strength > 0) {
-						this.hero.strength = this.hero.strength -1;
- 					}										
+					this.hero.health = this.hero.health - 0.01;
 
 					// keep the monster on the canvas
 
 					this.boundaryCheck(monster);
 
 					// is the hero touching this monster?
+					// confrontation hurts both parties.
 
 					if (this.collisionCheck(this.hero, monster)) {
-
-						if (this.hero.strength > 0){
-							++ this.monstersCaught;
-							this.monsters.splice(m, 1);
-
-							if (this.monsters.length == 0) {
-								this.reset();	
-							}
+						/*
+						if (this.hero.health > monster.health){
+							this.hero.health += 500;
+							monster.health -= 100;
 						} else {	
-							this.gameOver = true;					
+							monster.health += 100;
+							this.hero.health -= 500;
 						}
-					}					
+						*/
+
+						this.hero.health -= 20;
+						monster.health -= 20;
+					}		
+
+					// is the monster still alive ? 
+
+					if (monster.health < 0) {
+						++ this.monstersCaught;
+						this.monsters.splice(m, 1);
+
+						if (this.monsters.length == 0) {
+							this.reset();	
+						}
+					}
 
 				}
 						
@@ -294,7 +330,7 @@
 
 				for (var m = 0 ; m < this.monsters.length ; m++) {
 					var monster = this.monsters[m];
-					if (this.hero.strength > 0) {
+					if (this.hero.health > monster.health) {
 						if (monster.avatar.ready) {
 							this.ctx.drawImage(monster.avatar.image, monster.x, monster.y);	
 						}					
@@ -309,11 +345,11 @@
 
 				var status 	= "Goblins caught: " 
 							+ this.monstersCaught 
-							+ " : " 
-							+ ((this.hero.strength>0) ? "attacking" : "defending");
+							+ " :: health: " 
+							+ this.hero.health;
 
 				if (this.gameOver) {
-					status = "Game Over!";
+					status = status + " :: Game Over!";
 				}							
 
 				this.ctx.fillStyle = "rgb(250, 250, 250)";
